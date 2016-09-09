@@ -1,0 +1,62 @@
+query_graph.c:接受sparql语句，将query转化成图。(邻接表格式输出)
+ 输入：sparql语句
+ 输入格式要求：{中间的为语句}，{标志着开始，与主语之间留一个空格，}标志着结束，并去掉}作为宾语，主语谓语宾语之间空格分割。已经去掉了宾语后面的句号
+ select ?river where { ?river rdf:type dbo:River. dbr:Brooklyn_Bridge dbo:crosses ?river.}
+
+
+ "id": "6"
+ In which city did John F. Kennedy die?
+ 标准：SELECT DISTINCT ?uri WHERE { <http://dbpedia.org/resource/John_F._Kennedy> <http://dbpedia.org/ontology/deathPlace> ?uri.  ?uri <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://dbpedia.org/ontology/City>.}
+ 标答：http://dbpedia.org/resource/Dallas
+ 我们的：select ?city where { dbr:John_F._Kennedy dbo:deathPlace ?city. }
+ 我们答案：
+ http://dbpedia.org/resource/Dallas
+ http://dbpedia.org/resource/Texas
+ 类型：少type限定边
+ 解决方法：加type限定边
+
+
+ 2th_label_path.c:
+ 读取原始RDF文件，DBpedia2014_sorted_dbo_dbp_type_yago_type
+ gengxin.txt中是要查的答案
+
+
+ （1）get_file_line:文件按行读，（去掉了宾语的末尾句号）
+ edgecnt边数，从1开始，最后的值等于总边数
+ remapLabel：edgecnt数目->边的名字
+ visit：对每条边都初始化成false
+
+
+ mapUniqueLabel：边的名字->UniqueEdgeCnt 记录不同label的边 （从0开始，最后比实际多1）
+ 与之对应：remapUniqueLabel：UniqueEdgeCnt->边的名字
+
+
+ edge数组下标是边号，e属性中存UniqueEdgeCnt，u属性中存点数（出），v属性中存点数（入）
+
+
+ 记录type对应的unique值
+
+
+ mapNode：点的名字->entitycnt（从1开始）点数，比实际多1
+
+
+ IncludeNode是二维数组 第一维：UniqueEdgeCnt 第二维：入的点
+
+
+ （2）build_index
+ show二维数组：第一维是每个点，第二维是其存在的边的原始边号，如果是出点，就对应io数组为1，入点为0.countt数组记录每个点这一维的记录个数
+
+
+EdgeNode表节点：EdgeNode*next，adjvex
+VertexNode：头结点：EdgeNode*firstedge，VertexData（原始点号）
+AdjList：VertexNode vertex[100000000]
+
+
+ 读取待查的答案文件的每一行，即为一个答案，要生成其周围的子图adj。
+ （1）CreateGraph
+ mapGraphNode：在子图中的点号ncount->在原始RDF中的点号
+ remapGraphNode：反
+ vertex数组下标即为在子图中的点号
+ 先把第一个点添进去，AddNode从这个点关联的第一层点，走过的点就标记visit过。如果发现是type指向的，那么从这个点就不继续扩展。否则从刚进来的每一个点继续扩展。然后加边，注意无向。
+ （2）DisplayGraph
+ （3）Delete
